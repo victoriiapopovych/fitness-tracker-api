@@ -63,3 +63,65 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 
     return {"error": "User not found"}
 
+
+@app.post("/exercises", response_model=schemas.Exercise)
+def create_exercise(exercise: schemas.ExerciseCreate, db: Session = Depends(get_db)):
+    db_exercise = models.Exercise(
+        exercise_name=exercise.exercise_name,
+        muscle_group=exercise.muscle_group,
+        complexity=exercise.complexity
+    )
+
+    db.add(db_exercise)
+    db.commit()
+    db.refresh(db_exercise)
+
+    return db_exercise
+
+@app.get("/exercises", response_model=list[schemas.Exercise])
+def get_exercises(complexity: str = None, db: Session = Depends(get_db)):
+    query = db.query(models.Exercise)
+
+    if complexity:
+        query = query.filter(models.Exercise.complexity == complexity)
+
+    return query.all()
+
+@app.get("/exercises/{exercise_id}", response_model=schemas.Exercise)
+def get_exercise(exercise_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Exercise).filter(
+        models.Exercise.exercise_id == exercise_id
+    ).first()
+
+@app.put("/exercises/{exercise_id}", response_model=schemas.Exercise)
+def update_exercise(exercise_id: int, updated: schemas.ExerciseCreate, db: Session = Depends(get_db)):
+    exercise = db.query(models.Exercise).filter(
+        models.Exercise.exercise_id == exercise_id
+    ).first()
+
+    if not exercise:
+        return {"error": "Exercise not found"}
+
+    exercise.exercise_name = updated.exercise_name
+    exercise.muscle_group = updated.muscle_group
+    exercise.complexity = updated.complexity
+
+    db.commit()
+    db.refresh(exercise)
+
+    return exercise
+
+@app.delete("/exercises/{exercise_id}")
+def delete_exercise(exercise_id: int, db: Session = Depends(get_db)):
+    exercise = db.query(models.Exercise).filter(
+        models.Exercise.exercise_id == exercise_id
+    ).first()
+
+    if not exercise:
+        return {"error": "Exercise not found"}
+
+    db.delete(exercise)
+    db.commit()
+
+    return {"message": "Exercise deleted"}
+
