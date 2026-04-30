@@ -125,3 +125,67 @@ def delete_exercise(exercise_id: int, db: Session = Depends(get_db)):
 
     return {"message": "Exercise deleted"}
 
+
+@app.post("/workouts", response_model=schemas.Workout)
+def create_workout(workout: schemas.WorkoutCreate, db: Session = Depends(get_db)):
+    db_workout = models.Workout(
+        user_id=workout.user_id,
+        date=workout.date,
+        duration=workout.duration
+    )
+
+    db.add(db_workout)
+    db.commit()
+    db.refresh(db_workout)
+
+    return db_workout
+
+@app.get("/workouts", response_model=list[schemas.Workout])
+def get_workouts(db: Session = Depends(get_db)):
+    return db.query(models.Workout).all()
+
+@app.post("/workouts/{workout_id}/exercise")
+def add_exercise_to_workout(
+    workout_id: int,
+    data: schemas.WorkoutExerciseCreate,
+    db: Session = Depends(get_db)
+):
+    we = models.WorkoutExercise(
+        workout_id=workout_id,
+        exercise_id=data.exercise_id,
+        sets=data.sets,
+        reps=data.reps,
+        weight=data.weight
+    )
+
+    db.add(we)
+    db.commit()
+
+    return {"message": "Exercise added to workout"}
+
+@app.get("/workouts/{workout_id}")
+def get_workout_with_exercises(workout_id: int, db: Session = Depends(get_db)):
+    workout = db.query(models.Workout).filter(
+        models.Workout.workout_id == workout_id
+    ).first()
+
+    if not workout:
+        return {"error": "Workout not found"}
+
+    result = {
+        "workout_id": workout.workout_id,
+        "date": workout.date,
+        "exercises": []
+    }
+
+    for we in workout.workout_exercises:
+        result["exercises"].append({
+            "exercise_id": we.exercise.exercise_id,
+            "name": we.exercise.exercise_name,
+            "sets": we.sets,
+            "reps": we.reps,
+            "weight": float(we.weight) if we.weight else None
+        })
+
+    return result
+
